@@ -10,6 +10,7 @@ except ImportError:
     )
     exit()
 import idaapi
+import idc
 from pathlib import Path
 import argparse
 import sys
@@ -83,6 +84,7 @@ def type_for_name(til: idaapi.til_t, s: str) -> idaapi.tinfo_t:
 def change_type(
     til: idaapi.til_t, name: str, ida_name: str, BOOL: idaapi.tinfo_t, auto_enum: AutoEnum
 ) -> bool:
+    get_or_add_enum.cache_clear()
     ti = type_for_name(til, ida_name)
 
     if not ti:
@@ -108,7 +110,11 @@ def change_type(
             func = auto_enum.functions[name]
             matching_arg = next((a for a in func.arguments if a.name == arg.name), None)
             if matching_arg and matching_arg.enum is not None:
-                enum_name = get_or_add_enum(auto_enum, matching_arg.enum, til)
+                enum_name = get_or_add_enum(auto_enum, matching_arg.enum)
+                tif = idaapi.tinfo_t()
+                ida_enum_id = idc.get_enum(enum_name)
+                tif.get_type_by_tid(ida_enum_id)
+                tif.set_named_type(til, enum_name, idaapi.NTF_REPLACE | idaapi.NTF_COPY)
                 enum_type = idaapi.tinfo_t()
                 enum_type.get_named_type(til, enum_name)
                 arg.type = enum_type

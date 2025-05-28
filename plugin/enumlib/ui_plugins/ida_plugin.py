@@ -190,7 +190,7 @@ def get_funcinfo(funcptr_addr):
 
 
 @functools.lru_cache()
-def get_or_add_enum(auto_enum: enumlib.AutoEnum, enum_id: str, til: idaapi.til_t=None):
+def get_or_add_enum(auto_enum: enumlib.AutoEnum, enum_id: str):
     enum_name = f"ENUM_{enum_id}"
     ida_enum_id = idc.get_enum(enum_name)
     if ida_enum_id == idaapi.BADADDR:
@@ -198,16 +198,18 @@ def get_or_add_enum(auto_enum: enumlib.AutoEnum, enum_id: str, til: idaapi.til_t
         enum = auto_enum.enums[enum_id]
         ida_typeinf.begin_type_updating(ida_typeinf.UTP_ENUM)
         for k, v in enum.items():
-            res = idc.add_enum_member(ida_enum_id, k, v, -1)
+            try:
+                res = idc.add_enum_member(ida_enum_id, k, v, -1)
+            except ValueError:
+                res = 1
             append = 1
             while res != 0 and append < 10:
-                res = idc.add_enum_member(ida_enum_id, f"{k}_{append}", v, -1)
+                try:
+                    res = idc.add_enum_member(ida_enum_id, f"{k}_{append}", v, -1)
+                except ValueError:
+                    res = 1
                 append += 1
         ida_typeinf.end_type_updating(ida_typeinf.UTP_ENUM)
-        if til:
-            tif = idaapi.tinfo_t()
-            tif.get_type_by_tid(ida_enum_id)
-            tif.set_named_type(til, enum_name, idaapi.NTF_REPLACE | idaapi.NTF_COPY)
         return enum_name
     return enum_name
 
